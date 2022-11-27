@@ -1,4 +1,4 @@
-from datasource.data import DataCSV
+from ..datasource.data import DataCSV
 import os
 import time
 import configparser
@@ -29,6 +29,7 @@ class Generator:
             }
 
         self.app = Flask(__name__)
+        self.app.run()
 
         # self._config = config
         self.active = True
