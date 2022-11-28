@@ -30,53 +30,15 @@ class Generator:
         #     'MQTT': {'broker': '', 'port': '', 'topic': ''},
         #     'HTTP': {'host': '', 'port': ''},
         #     }
-        self._config = json.loads(config)
-        
+        self._config = config
+        self._config = json.loads(self._config)
+
         self.active = True
 
         self.buffer = []
-        
-        
-        
-        
-        # self.app = Flask(__name__)
-
-        # @self.app.route('/start', methods=['post'])
-        # # TODO: Posibble error 
-        # def start():
-        #         self._config = request.get_json()
-        #         self.load()
-        #         self.send()
-        #         return """Sent"""
-
-                # self._config = {
-                # 'data': {'source': request.form.get('source'), 'channel': request.form.get('channel'), 'frequency': request.form.get('frequency')},
-                # 'MQTT': {'broker': request.form.get('broker'), 'port': request.form.get('port'), 'topic': request.form.get('topic')},
-                # 'HTTP': {'host': request.form.get('host'), 'port': request.form.get('port')},
-                # }
-                # self.load()
-                # self.send()
-
-        # @self.app.route('/stop', methods=['post'])
-        # # TODO: Posibble error 
-        # def stop():
-        #     self.active = False
-        #     return """Halted"""
-        
-        # self.app.run(port=self._port, debug=True)
-
-
-
-
-        
-
-        # self._config = config
-
 
     def load(self):
-        print(type(self._config))
         self.temp = iter(self.buffer)
-        # FIXME: self_config nie jest dict a powinien byc
         self._data_config = self._config['data']
         data = DataCSV(self._data_config['source'])
         labels, holder = data.expose()
@@ -102,21 +64,23 @@ class Generator:
         client.on_publish=on_publish
         client.on_connect=on_connect
         client.connect(self._mqtt_config['broker'], int(self._mqtt_config['port']))
-        # for _ in iter(int, 1):
         while self.active:
             client.publish(self._mqtt_config['topic'], json.dumps({'data': next(self.temp)}))
             time.sleep(self.frequency)
         client.disconnect()
 
     def http(self):
-        # for _ in iter(int, 1):
         while self.active:
             pload = {'data': next(self.temp)}
-            requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
+            try:
+                requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
+            except:
+                print('\033[91m>> Connection refused by peer <<\033[0m')
+                break
             time.sleep(self.frequency)
 
     def run(self):
-        print("Started")
+        print("\033[96m>> Generator active <<\033[0m")
         self.load()
         self.send()
 

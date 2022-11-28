@@ -6,30 +6,13 @@ import json
 import time
 
 
-x = {
-    "data": {
-        "source": "./datasets/biomechanical.csv",
-        "channel": "HTTP",
-        "frequency": 1
-    },
-    "MQTT": {
-        "broker": "test.mosquitto.org",
-        "port": 1883,
-        "topic": "testiot439"
-    },
-    "HTTP": {
-        "host": "127.0.0.1",
-        "port": 5000
-    }
-}
 
-
-class Menager:
+class Controller:
     def __init__(self) -> None:
         self.app = Flask(__name__)
         self.register = {}
         self._config = ''
-
+        # TODO: Add UUID instead of name
         @self.app.route('/<name>/start', methods=['post'])
         # TODO: Posibble error 
         def start(name):
@@ -46,24 +29,25 @@ class Menager:
                     # self.send()
 
         @self.app.route('/<name>/stop', methods=['post'])
-        # TODO: Posibble error 
         def stop(name):
-            self.start_generator(name)
+            self.stop_generator(name)
             return """Halted"""
 
     def start_generator(self, id:str, config:dict):
+        # TODO: consider adding restriction to one generator per menager instance
+        temp = 0
+        # str_config= json.dumps(config)
+        # print(type(config))
+        # print(config)
+
         # temp = subprocess.run(['python', 'generator.py', '--config', json.dumps(config)])
-        try:
-            temp = subprocess.Popen(['python', 'generator.py', '--config', json.dumps(config)], stdout=subprocess.PIPE)
-        except:
-            print("Error")
+        temp = subprocess.Popen(['python', 'generator.py', '--config', config])
+
         self.register.update({id: temp})
 
     def stop_generator(self, name:str):
+        print("\033[93m* Generator deactivated\033[0m")
         self.register[name].kill()
-
-    def update_generator(self):
-        pass
 
     def set_up(self, port:int):
         self.app.run(port=port, debug=True)
@@ -71,6 +55,6 @@ class Menager:
 
 
 if __name__ == "__main__":
-    p = Menager()
+    p = Controller()
     p.set_up(8000)
 

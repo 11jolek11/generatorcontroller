@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 class Data():
     def __init__(self, path) -> None:
-        print(path)
+        # print(path)
         if os.path.exists(path):
             self.s_content = None
             self._path = path
