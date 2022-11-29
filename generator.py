@@ -1,41 +1,29 @@
 from datasource.data import DataCSV
-import os
 import argparse
 import time
 import requests
 import paho.mqtt.client as mqtt
-from itertools import count
 import json
-from itertools import count
-from sys import maxsize
-from flask import Flask, request
-import json
-
-
-def on_connect(client, userdata, flags, rc):
-    print("Connected with result code "+str(rc))
-
-def on_publish(client, userdata, mid):
-    print("SENT >>")
 
 
 class Generator:
-
-    # def __init__(self, port) -> None:
     def __init__(self, config:str) -> None:
-        # self.config scheme
-        # self._port =port
-        # self._config = {
-        #     'data': {'source': '', 'channel': '', 'frequency': ''},
-        #     'MQTT': {'broker': '', 'port': '', 'topic': ''},
-        #     'HTTP': {'host': '', 'port': ''},
-        #     }
         self._config = config
         self._config = json.loads(self._config)
 
         self.active = True
 
         self.buffer = []
+
+    # mqtt hook#1
+    @staticmethod
+    def on_connect(client, userdata, flags, rc):
+        print("Connected with result code "+str(rc))
+
+    # mqtt hook#2
+    @staticmethod
+    def on_publish(client, userdata, mid):
+        print("sent to MQTT broker >> " + str(mid))
 
     def load(self):
         self.temp = iter(self.buffer)
@@ -61,8 +49,8 @@ class Generator:
 
     def mqtt(self):
         client = mqtt.Client()
-        client.on_publish=on_publish
-        client.on_connect=on_connect
+        client.on_publish=self.on_publish
+        client.on_connect=self.on_connect
         client.connect(self._mqtt_config['broker'], int(self._mqtt_config['port']))
         while self.active:
             client.publish(self._mqtt_config['topic'], json.dumps({'data': next(self.temp)}))
@@ -75,7 +63,7 @@ class Generator:
             try:
                 requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
             except:
-                print('\033[91m>> Connection refused by peer <<\033[0m')
+                print('\033[91m>> Connection dropped by peer <<\033[0m')
                 break
             time.sleep(self.frequency)
 
@@ -83,26 +71,6 @@ class Generator:
         print("\033[96m>> Generator active <<\033[0m")
         self.load()
         self.send()
-
-    #app = Flask(__name__)
-
-
-    # Routings
-    # @app.route('<source>/start', methods= ['post'])
-    # # TODO: Posibble error 
-    # def start(self, source):
-    #         self._config = {
-    #         'data': {'source': source, 'channel': request.form.get('channel'), 'frequency': request.form.get('frequency')},
-    #         'MQTT': {'broker': request.form.get('broker'), 'port': request.form.get('port'), 'topic': request.form.get('topic')},
-    #         'HTTP': {'host': request.form.get('host'), 'port': request.form.get('port')},
-    #         }
-    #         self.load()
-    #         self.send()
-
-    # @app.route('<source>/stop', methods= ['post'])
-    # # TODO: Posibble error 
-    # def stop(self, source):
-    #     self.active = False
 
 
 if __name__ == "__main__":

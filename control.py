@@ -1,9 +1,6 @@
 from flask import Flask, request
 import subprocess
-import random
-import uuid
 import json
-import time
 
 
 
@@ -12,42 +9,41 @@ class Controller:
         self.app = Flask(__name__)
         self.register = {}
         self._config = ''
-        # TODO: Add UUID instead of name
-        @self.app.route('/<name>/start', methods=['post'])
-        # TODO: Posibble error 
-        def start(name):
+        # TODO: Add UUID instead of id
+        @self.app.route('/<id>/start', methods=['post']) 
+        def start(id):
             self._config = request.get_json()
             self._config = json.dumps(self._config)
-            self.start_generator(name, self._config)
+            self.start_generator(id, self._config)
+            # TODO: change to JSON
             return """Sent"""
-                # self._config = {
-                # 'data': {'source': request.form.get('source'), 'channel': request.form.get('channel'), 'frequency': request.form.get('frequency')},
-                # 'MQTT': {'broker': request.form.get('broker'), 'port': request.form.get('port'), 'topic': request.form.get('topic')},
-                # 'HTTP': {'host': request.form.get('host'), 'port': request.form.get('port')},
-                # }
-                    # self.load()
-                    # self.send()
 
-        @self.app.route('/<name>/stop', methods=['post'])
-        def stop(name):
-            self.stop_generator(name)
+        @self.app.route('/<id>/stop', methods=['post'])
+        def stop(id):
+            self.stop_generator(id)
+            # TODO: change to JSON
             return """Halted"""
 
-    def start_generator(self, id:str, config:dict):
-        # TODO: consider adding restriction to one generator per menager instance
-        temp = 0
-        # str_config= json.dumps(config)
-        # print(type(config))
-        # print(config)
+    def start_generator(self, id:str, config:str):
+        # TODO: dodaj funkcje która będzie zmieniać w wartości w czasie działania generatora
+        # TODO: consider adding restriction to one generator per Controler instance
+        # if id in self.register.keys():
+        #     self.register[id].communicate(input=config)
+        #     print('Updating...')
 
-        # temp = subprocess.run(['python', 'generator.py', '--config', json.dumps(config)])
+
+        if id in self.register.keys():
+            self.register[id].kill()
+            print('Updating...')
+
+        temp = None
         temp = subprocess.Popen(['python', 'generator.py', '--config', config])
-
         self.register.update({id: temp})
 
     def stop_generator(self, name:str):
         print("\033[93m* Generator deactivated\033[0m")
         self.register[name].kill()
+        del self.register[name]
 
     def set_up(self, port:int):
         self.app.run(port=port, debug=True)
@@ -57,4 +53,3 @@ class Controller:
 if __name__ == "__main__":
     p = Controller()
     p.set_up(8000)
-
