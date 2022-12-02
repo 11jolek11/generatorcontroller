@@ -12,10 +12,10 @@ class Controller:
         self.uuid = uuid.uuid4()
         self.ip = '127.0.0.1'
         self.port = 8080
-        self.app = Flask(__name__)
         self.register = {}
-        self._config = ''
         self.auto_register()
+        self.app = Flask(__name__)
+        self._config = ''
         @self.app.route('/<id>/start', methods=['post']) 
         def start(id):
             self._config = request.get_json()
@@ -53,10 +53,12 @@ class Controller:
         self.app.run(port=port, debug=True)
 
     def auto_register(self):
+        print('pipipi')
         transaction_completed = False
 
         def reg_on_connect(client, userdata, flags, rc):
             print('Connected to register with result code: ' + str(rc))
+            client.subscribe("transation_channel")
 
         def reg_on_publish(client, userdata, mid):
             print('Attempting to register...')
@@ -64,24 +66,23 @@ class Controller:
         # check if admin panel registered controler (checks if msg equals self.uuid)
         def reg_on_message(client, userdata, msg):
             content = msg.payload.decode()
+            print('Mes')
             if str(self.uuid) == content:
                 print('Attempt sucessfull')
                 transaction_completed = True
         
-        client = mqtt.Client()
+        client = mqtt.Client(client_id='11jolek11')
         client.on_connect = reg_on_connect
         client.on_publish = reg_on_publish
         client.on_message = reg_on_message
 
         client.connect("test.mosquitto.org", 1883)
 
-        while not transaction_completed:
-            avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
-            message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
-            time.sleep(3)
-            client.publish('waitroom458', message)
+        avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
+        message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
+        client.publish('waitroom458', message)
+        client.loop_forever()
 
-        client.disconnect()
             
 
 
