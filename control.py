@@ -53,8 +53,6 @@ class Controller:
         self.app.run(port=port, debug=True)
 
     def auto_register(self):
-        print('pipipi')
-        transaction_completed = False
 
         def reg_on_connect(client, userdata, flags, rc):
             print('Connected to register with result code: ' + str(rc))
@@ -66,17 +64,17 @@ class Controller:
         # check if admin panel registered controler (checks if msg equals self.uuid)
         def reg_on_message(client, userdata, msg):
             content = msg.payload.decode()
-            print('Mes')
             if str(self.uuid) == content:
                 print('Attempt sucessfull')
-                transaction_completed = True
         
-        client = mqtt.Client(client_id='11jolek11')
+        # client = mqtt.Client(client_id='11jolek11')
+        client = mqtt.Client(client_id='11jolek11', transport='websockets')
         client.on_connect = reg_on_connect
         client.on_publish = reg_on_publish
         client.on_message = reg_on_message
 
-        client.connect("test.mosquitto.org", 1883)
+        # client.connect("test.mosquitto.org", 1883)
+        client.connect("test.mosquitto.org", 8080)
 
         avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
         message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
