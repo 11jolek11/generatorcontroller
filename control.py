@@ -10,6 +10,7 @@ import uuid
 class Controller:
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
+        self.uuid = 1
         self.ip = '127.0.0.1'
         self.port = 8080
         self.register = {}
@@ -48,12 +49,12 @@ class Controller:
         else:
             return jsonify({'id': id, 'status_code': 0, 'status': 'down'})
 
-    def set_up(self, port:int):
-        self.port =port
+    def set_up(self, port:int) -> None:
+        self.port = port
         self.app.run(port=port, debug=True)
-
+    
     def auto_register(self):
-
+        # FIXME: auto_register runs two times why!!??
         def reg_on_connect(client, userdata, flags, rc):
             print('Connected to register with result code: ' + str(rc))
             client.subscribe("transation_channel")
@@ -63,9 +64,11 @@ class Controller:
 
         # check if admin panel registered controler (checks if msg equals self.uuid)
         def reg_on_message(client, userdata, msg):
+            client.disconnect()
             content = msg.payload.decode()
             if str(self.uuid) == content:
                 print('Attempt sucessfull')
+            client.disconnect()
         
         # client = mqtt.Client(client_id='11jolek11')
         client = mqtt.Client(client_id='11jolek11', transport='websockets')
@@ -78,12 +81,14 @@ class Controller:
 
         avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
         message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
+        client.subscribe("transation_channel")
         client.publish('waitroom458', message)
         client.loop_forever()
-
+        client.disconnect()
+        return None
             
 
 
 if __name__ == "__main__":
     p = Controller()
-    p.set_up(8000)
+    p.set_up(7000)
