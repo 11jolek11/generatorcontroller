@@ -14,6 +14,8 @@ class Controller:
         self.ip = '127.0.0.1'
         self.port = 8080
         self.register = {}
+        # self.mqtt_client = mqtt.Client(client_id='11jolek11', transport='websockets')
+
         self.auto_register()
         self.app = Flask(__name__)
         self._config = ''
@@ -22,12 +24,29 @@ class Controller:
             self._config = request.get_json()
             self._config = json.dumps(self._config)
             self.start_generator(id, self._config)
+            self.auto_register()
             return jsonify({'req_status': str(id) + ' started'})
 
         @self.app.route('/<id>/stop', methods=['post'])
         def stop(id):
             self.stop_generator(id)
+            self.auto_register()
             return jsonify({'req_status': str(id) + ' stopped'})
+
+        # def reg_on_connect(client, userdata, flags, rc):
+        #     print('Connected to register with result code: ' + str(rc))
+        #     client.subscribe("transaction_channe")
+        # def reg_on_publish(client, userdata, mid):
+        #     print('Attempting to register...')
+        # # check if admin panel registered controler (checks if msg equals self.uuid)
+        # def reg_on_message(client, userdata, msg):
+        #     client.disconnect()
+        #     content = msg.payload.decode()
+        #     if str(self.uuid) == content:
+        #         print('Attempt sucessfull')
+        #     client.disconnect()
+
+
 
     def start_generator(self, id:str, config:str):
         if id in self.register.keys():
@@ -57,7 +76,7 @@ class Controller:
         # FIXME: auto_register runs two times why!!??
         def reg_on_connect(client, userdata, flags, rc):
             print('Connected to register with result code: ' + str(rc))
-            client.subscribe("transation_channel")
+            client.subscribe("transaction_channel")
 
         def reg_on_publish(client, userdata, mid):
             print('Attempting to register...')
@@ -79,10 +98,19 @@ class Controller:
         # client.connect("test.mosquitto.org", 1883)
         client.connect("test.mosquitto.org", 8080)
 
-        avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
-        message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
-        client.subscribe("transation_channel")
-        client.publish('waitroom458', message)
+        avaible_generators = {
+            'ip': self.ip,
+            'port': self.port,
+            'uuid': str(self.uuid),
+            'generators': list(self.register.keys())
+        }
+
+
+        message = json.dumps(avaible_generators)
+        # avaible_generators = str(list(self.register.keys())).replace('[', '').replace(']', '').replace(',', '#')
+        # message = str(self.uuid) + '$' + self.ip + ':' + str(self.port) + '@' + avaible_generators
+        client.subscribe("transaction_channel")
+        client.publish('waitroom459', message)
         client.loop_forever()
         client.disconnect()
         return None
