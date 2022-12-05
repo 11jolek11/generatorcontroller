@@ -4,6 +4,8 @@ import json
 import paho.mqtt.client as mqtt
 import time
 import uuid
+from flask_cors import CORS
+
 
 
 
@@ -36,6 +38,7 @@ class Controller:
 
         # self.auto_register()
         self.app = Flask(__name__)
+        CORS(self.app)
         self._config = ''
         @self.app.route('/<id>/start', methods=['post']) 
         def start(id):
@@ -50,6 +53,10 @@ class Controller:
             self.stop_generator(id)
             return jsonify({'req_status': str(id) + ' stopped'})
 
+        @self.app.route('/<id>/status', methods=['post'])
+        def status(id):
+            return self.status_generator(id=id)
+
     def start_generator(self, id:str, config:str):
         if id in self.register.keys():
             self.register[id].kill()
@@ -59,9 +66,13 @@ class Controller:
         temp = subprocess.Popen(['python', 'generator.py', '--config', config])
         self.register.update({id: temp, 'config': config})
         avaible_generator = json.dumps({
+            # ID generatora
             'name': id,
+            # IP interfaceu
             'ip': self.ip,
+            # Port interfaceu
             'port': self.port,
+            # Klucz interfejsu
             'uuid': str(self.uuid),
         })
         self.client.connect("test.mosquitto.org", 8080)
