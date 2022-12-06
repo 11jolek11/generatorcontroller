@@ -74,6 +74,7 @@ class Controller:
             'port': self.port,
             # Klucz interfejsu
             'uuid': str(self.uuid),
+            'config': config,
         })
         self.client.connect("test.mosquitto.org", 8080)
         self.client.subscribe("transaction_channel")
