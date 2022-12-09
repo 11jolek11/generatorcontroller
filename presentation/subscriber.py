@@ -6,6 +6,7 @@ def on_connect(client, userdata, flags, rc):
     # the client connects to the broker 
     print("Connected with result code {0}".format(str(rc)))
     client.subscribe("testiot439")
+    # client.subscribe("waitroom459")
     # Print result of connection attempt client.subscribe("digitest/test1")  
     # Subscribe to the topic “digitest/test1”, receive any messages 
     # published on it

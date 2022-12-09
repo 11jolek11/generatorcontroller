@@ -10,7 +10,7 @@ class Data():
             self.s_content = None
             self._path = path
         else:
-            raise FileNotFoundError
+            raise FileNotFoundError('Cant find file ' + str(path))
 
         self._name = os.path.split(self._path)[0]
         self._type = os.path.split(self._path)[1]
