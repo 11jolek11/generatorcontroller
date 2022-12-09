@@ -4,6 +4,7 @@ import time
 import requests
 import paho.mqtt.client as mqtt
 import json
+import os
 
 
 class Generator:
@@ -28,14 +29,18 @@ class Generator:
     def load(self):
         self.temp = iter(self.buffer)
         self._data_config = self._config['data']
+        print('&&&&&&&')
+        print(os.path.exists(self._data_config['source']))
         data = DataCSV(self._data_config['source'])
         labels, holder = data.expose()
         dict_len = max(list(holder[labels[0]].keys()))
         for y in range(6000):
-            t_str=""
+            t_str="{"
             y = y % dict_len
             for x in labels:
-                t_str += str(holder[x][y]) + "  " 
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(holder[x][y]) + '"' + ","
+            t_str = t_str[:-1:]
+            t_str += '}'
             self.buffer.append(t_str)
 
     def send(self):
