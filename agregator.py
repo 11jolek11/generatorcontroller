@@ -12,20 +12,25 @@ from pandas import json_normalize
 class Agregator():
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
+
         self.server = Flask(str(self.uuid))
         CORS(self.server)
+
+        self.active = True
+
         self.mqtt_client = mqtt.Client(client_id=str(self.uuid), transport='websockets')
 
         self.memory_queue = pd.DataFrame()
 
         self.last_data = [None]
 
-        self.conf = {
+        self._config = {
             'method': 'http',
+            'frequency': 1,
             'http':{
                 'destiantion': '127.0.0.1',
-                'destiantion_port': 9000,
-                'destiantion_path': ''
+                'destiantion_port': 5000,
+                'destiantion_path': '/'
             },
             'mqtt': {
                 'broker': 'test.mosquitto.org',
@@ -48,6 +53,18 @@ class Agregator():
             # FIXME: find better solution:
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
+
+        @self.server.route('/start', methods=['get', 'post'])
+        def start():
+            self.active = True
+            self.emit()
+            return jsonify({'status': 'START'})
+
+        @self.server.route('/stop', methods=['post', ' get'])
+        def stop():
+            self.active = False
+            self.stop_emit()
+            return jsonify({'status': 'STOP'})
             
         @self.server.route('/info')
         def info():
@@ -86,11 +103,11 @@ class Agregator():
 
     def package(self):
         pack = []
-        if self.config['constraints']['select'] != '' or self.config['constraints']['function'] != '':
-            data = self.selection(self.config['constraints']['select'], self.config['constraints']['function'])
+        if self._config['constraints']['select'] != '' or self._config['constraints']['function'] != '':
+            data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
         else:
             data = self.memory_queue.copy()
-        for y in range(data.size()[0]):
+        for y in range(data.shape[0]):
             t_str='{'
             for x in data.columns.tolist():
                 t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
@@ -99,31 +116,9 @@ class Agregator():
             pack.append(t_str)
         return pack
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     # MQTT connection triggers
     def on_connect(client, userdata, flags, rc, self):
-        client.subscribe(self.config['mqtt']['topic'])
+        client.subscribe(self._config['mqtt']['topic'])
         print('Connection esablished with code: ' + str(rc))
 
     def on_publish(client, userdata, mid):
@@ -133,7 +128,46 @@ class Agregator():
     def on_message(client, userdata, msg, self):
         data_json = json.loads(msg.payload.decode())
         self.agregate(data_json)
+
+    def http(self):
+        data = self.package()
+        while self.active:
+            print(">> SENT")
+            try:
+                pload = {'data': data}
+            except StopIteration:
+                self.active = False
+                break
+            requests.post('http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path']), data = pload)
+            time.sleep(self._config['frequency'])
+
+    def mqtt(self):
+        # FIXME: fixes needed 
+        data = self.package()
+        self.mqtt_client.on_publish=self.on_publish
+        self.mqtt_client.on_connect=self.on_connect
+        self.mqtt_client.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['port']))
+        while self.active:
+            try:
+                self.mqtt_client.publish(self._config['mqtt']['topic'], json.dumps({'data': next(data)}))
+            except StopIteration:
+                self.active = False
+                break
+            time.sleep(self._config['frequency'])
+        self.mqtt_client.disconnect()
+
+    def emit(self):
+        if self._config['method'].lower() == 'http':
+            self.http()
+        if self._config['method'].lower() == 'mqtt':
+            self.mqtt()
+
+
+    def stop_emit(self):
+        self.active = False
+
         
 
 if __name__ == "__main__":
-    Agregator()
+    p = Agregator()
+    # p.emit()
