@@ -24,12 +24,17 @@ class Agregator():
             'method': 'http',
             'http':{
                 'destiantion': '127.0.0.1',
-                'destiantion_port': 9000
+                'destiantion_port': 9000,
+                'destiantion_path': ''
             },
             'mqtt': {
                 'broker': 'test.mosquitto.org',
                 'broker_port': 1883,
                 'topic': 'baltazar'
+            },
+            'constraints': {
+                'select': '',
+                'function': '',
             }
         }
 
@@ -46,10 +51,12 @@ class Agregator():
             
         @self.server.route('/info')
         def info():
+            # TODO: add info section
             pass
 
         @self.server.route('/config')
         def change_config():
+            # TODO: add config
             pass
 
 
@@ -65,18 +72,53 @@ class Agregator():
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
-            print('#################')
             print(df)
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
-            print('#################')
-            print(self.memory_queue)
         return None
 
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
-        memory = self.memory_queue.copy()
-        memory = memory[eval(selection)]
-        memory = eval(group_function + '(memory)')
-        return memory
+        if selection != '':
+            temp_memory = self.memory_queue.copy()
+            temp_memory = temp_memory[eval(selection)]
+            if group_function != '':
+                temp_memory = eval(temp_memory + "." + group_function + '()')
+        return temp_memory
+
+    def package(self):
+        pack = []
+        if self.config['constraints']['select'] != '' or self.config['constraints']['function'] != '':
+            data = self.selection(self.config['constraints']['select'], self.config['constraints']['function'])
+        else:
+            data = self.memory_queue.copy()
+        for y in range(data.size()[0]):
+            t_str='{'
+            for x in data.columns.tolist():
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
+            t_str = t_str[:-1:]
+            t_str += '}'
+            pack.append(t_str)
+        return pack
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # MQTT connection triggers
