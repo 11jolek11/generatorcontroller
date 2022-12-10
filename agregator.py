@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import time
 import requests
@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 import json
 import uuid
 import pandas as pd
-from pandas.io.json import json_normalize
+from pandas import json_normalize
 
 
 class Agregator():
@@ -38,34 +38,12 @@ class Agregator():
         # Routing
         @self.server.route('/', methods=['post'])
         def intercept():
-            # TODO: do agragacji danych i ich obróbki użyj dataframe z pandas
             data = request.form['data']
             data_json = json.loads(data)
             # FIXME: find better solution:
-            if len(self.last_data) > 1:
-                if data_json.keys() != self.last_data[-1].keys():
-                    # Clear DataFrame and prepare for next type of data
-                    self.memory_queue = self.memory_queue[0:0]
-            self.last_data.append(data_json)
-            df = json_normalize(data_json)
-            # print('###$')
-            # print(df)
-            if self.memory_queue.empty:
-                self.memory_queue = df
-            else:
-                # print(self.memory_queue)
-                print('#################')
-                print(df)
-                # FIXME: Join on 1st column
-                # self.memory_queue = self.memory_queue.join(df, on=df.columns.values.tolist()[0])
-
-                self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
-                print('#################')
-                print(self.memory_queue)
-            return """HTML"""
+            self.agregate(data_json)
+            return jsonify({'status': 'Ok'})
             
-            # print(self.memory_queue)
-
         @self.server.route('/info')
         def info():
             pass
@@ -77,18 +55,43 @@ class Agregator():
 
         self.server.run(port=9000, debug=True)
 
-    # MQTT connection hooks
-    @staticmethod
-    def on_connect(client, userdata, flags, rc):
-        pass
+    def agregate(self, data_json: dict) -> None:
+        if len(self.last_data) > 1:
+            if data_json.keys() != self.last_data[-1].keys():
+                # Clear DataFrame and prepare for next type of data
+                self.memory_queue = self.memory_queue[0:0]
+        self.last_data.append(data_json)
+        df = json_normalize(data_json)
+        if self.memory_queue.empty:
+            self.memory_queue = df
+        else:
+            print('#################')
+            print(df)
+            self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
+            print('#################')
+            print(self.memory_queue)
+        return None
 
-    @staticmethod
+    def selection(self, selection: str, group_function: str) -> pd.DataFrame:
+        memory = self.memory_queue.copy()
+        memory = memory[eval(selection)]
+        memory = eval(group_function + '(memory)')
+        return memory
+
+
+    # MQTT connection triggers
+    def on_connect(client, userdata, flags, rc, self):
+        client.subscribe(self.config['mqtt']['topic'])
+        print('Connection esablished with code: ' + str(rc))
+
     def on_publish(client, userdata, mid):
         pass
 
-    @staticmethod
-    def on_message(client, userdata, msg):
-        pass
+    # TODO: self parameter can create problems
+    def on_message(client, userdata, msg, self):
+        data_json = json.loads(msg.payload.decode())
+        self.agregate(data_json)
+        
 
 if __name__ == "__main__":
     Agregator()
