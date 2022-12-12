@@ -7,18 +7,21 @@ import json
 import uuid
 import pandas as pd
 from pandas import json_normalize
+from queue import Queue
 
 
 class Agregator():
+    # TODO: Generator zapisuje dla każdego generatora dane osobno
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
+
+        self.register_channel = "mqtt"
+        self.register_topic = "clock-76467"
 
         self.server = Flask(str(self.uuid))
         CORS(self.server)
 
         self.active = True
-
-        self.mqtt_client = mqtt.Client(client_id=str(self.uuid), transport='websockets')
 
         self.memory_queue = pd.DataFrame()
 
@@ -26,7 +29,7 @@ class Agregator():
 
         self._config = {
             'method': 'http',
-            'frequency': 1,
+            'frequency': 0,
             'http':{
                 'destiantion': '127.0.0.1',
                 'destiantion_port': 5000,
@@ -34,14 +37,39 @@ class Agregator():
             },
             'mqtt': {
                 'broker': 'test.mosquitto.org',
-                'broker_port': 1883,
-                'topic': 'baltazar'
+                'broker_port': 8080,
+                'send_topic': 'baltazar',
+                'recive_topic': 'black_1965',
             },
             'constraints': {
                 'select': '',
                 'function': '',
             }
         }
+
+        # MQTT connection callbacks
+        @staticmethod
+        def on_connect(mqtt_client, userdata, flags, rc):
+            mqtt_client.subscribe(self._config['mqtt']['recive_topic'])
+            print('Connection esablished with code: ' + str(rc))
+            # mqtt_client.subscribe("black_4567")
+
+        @staticmethod
+        def on_publish(client, userdata, mid):
+            print(">> SENT MQTT: {}".format(mid))
+
+        @staticmethod
+        def on_message(client, userdata, msg):
+            # temp = msg.payload.decode()
+            if msg.payload.decode() == "##START##":
+                self.emit()
+            elif msg.payload.decode() == "##STOP##":
+                self.stop_emit()
+            else:
+                print('Message arrived')
+                data_json = json.loads(msg.payload.decode())
+                self.agregate(data_json)
+                # print(self.memory_queue)
 
 
 
@@ -71,12 +99,18 @@ class Agregator():
             # TODO: add info section
             pass
 
-        @self.server.route('/config')
-        def change_config():
-            # TODO: add config
-            pass
+        # @self.server.route('/register')
+        # def register():
+        #     # TODO: add register
+        #     pass
 
 
+        self.mqtt_client = mqtt.Client(client_id=str(self.uuid), transport='websockets')
+        self.mqtt_client.loop_start()
+        self.mqtt_client.on_publish=on_publish
+        self.mqtt_client.on_connect=on_connect
+        self.mqtt_client.on_message=on_message
+        self.mqtt_client.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
         self.server.run(port=9000, debug=True)
 
     def agregate(self, data_json: dict) -> None:
@@ -89,8 +123,8 @@ class Agregator():
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
-            print(df)
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
+        print(self.memory_queue)
         return None
 
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
@@ -102,7 +136,7 @@ class Agregator():
         return temp_memory
 
     def package(self):
-        pack = []
+        pack = Queue()
         if self._config['constraints']['select'] != '' or self._config['constraints']['function'] != '':
             data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
         else:
@@ -113,48 +147,37 @@ class Agregator():
                 t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
             t_str = t_str[:-1:]
             t_str += '}'
-            pack.append(t_str)
+            pack.put(t_str)
         return pack
 
-    # MQTT connection triggers
-    def on_connect(client, userdata, flags, rc, self):
-        client.subscribe(self._config['mqtt']['topic'])
-        print('Connection esablished with code: ' + str(rc))
-
-    def on_publish(client, userdata, mid):
+    def register(self):
         pass
-
-    # TODO: self parameter can create problems
-    def on_message(client, userdata, msg, self):
-        data_json = json.loads(msg.payload.decode())
-        self.agregate(data_json)
 
     def http(self):
         data = self.package()
         while self.active:
-            print(">> SENT")
-            try:
-                pload = {'data': data}
-            except StopIteration:
+            if data.qsize() != 0:
+                pload = {'data': data.get()}
+                content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
+                requests.post(content, data = pload)
+                print(">> SENT HTTP: {} | {}".format(content, json.dumps(pload)))
+                time.sleep(self._config['frequency'])
+                self.active = True
+            else:
                 self.active = False
                 break
-            requests.post('http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path']), data = pload)
-            time.sleep(self._config['frequency'])
 
     def mqtt(self):
-        # FIXME: fixes needed 
         data = self.package()
-        self.mqtt_client.on_publish=self.on_publish
-        self.mqtt_client.on_connect=self.on_connect
-        self.mqtt_client.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['port']))
         while self.active:
-            try:
-                self.mqtt_client.publish(self._config['mqtt']['topic'], json.dumps({'data': next(data)}))
-            except StopIteration:
+            if data.qsize() != 0:
+                content = (self._config['mqtt']['send_topic'], json.dumps({'data': data.get()}))
+                self.mqtt_client.publish(content[0], content[1])
+                time.sleep(self._config['frequency'])
+                self.active = True
+            else:
                 self.active = False
                 break
-            time.sleep(self._config['frequency'])
-        self.mqtt_client.disconnect()
 
     def emit(self):
         if self._config['method'].lower() == 'http':
@@ -170,4 +193,3 @@ class Agregator():
 
 if __name__ == "__main__":
     p = Agregator()
-    # p.emit()
