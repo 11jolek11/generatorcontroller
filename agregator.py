@@ -49,12 +49,6 @@ class Agregator():
 
         # MQTT connection callbacks
         @staticmethod
-        def on_connect(mqtt_client, userdata, flags, rc):
-            mqtt_client.subscribe(self._config['mqtt']['recive_topic'])
-            print('Connection esablished with code: ' + str(rc))
-            # mqtt_client.subscribe("black_4567")
-
-        @staticmethod
         def on_publish(client, userdata, mid):
             print(">> SENT MQTT: {}".format(mid))
 
@@ -65,11 +59,22 @@ class Agregator():
                 self.emit()
             elif msg.payload.decode() == "##STOP##":
                 self.stop_emit()
+            elif msg.payload.decode() == str(self.uuid) + '$%$':
+                print("Registration succesfull")
             else:
                 print('Message arrived')
                 data_json = json.loads(msg.payload.decode())
                 self.agregate(data_json)
                 # print(self.memory_queue)
+
+        @staticmethod
+        def on_connect(mqtt_client, userdata, flags, rc):
+            for topic in [self._config['mqtt']['recive_topic'], self.register_topic]:
+                mqtt_client.subscribe(topic)
+            print('Connection esablished with code: ' + str(rc))
+            # Opublikuj swoje uuid jeśli frontend je zwróci (uuid + $%$) to będzie ok
+            mqtt_client.publish(self.register_topic, str(self.uuid))
+            # mqtt_client.subscribe("black_4567")
 
 
 
