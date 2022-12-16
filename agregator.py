@@ -12,6 +12,19 @@ from queue import Queue
 
 class Agregator():
     # TODO: Generator zapisuje dla każdego generatora dane osobno
+    # TODO cd. 
+    # Idea 1: kiedy przesyłamy jsona do agragatora to tworzymy z nazw kolumn hash który identyfikuje zbiór danych
+    # z DF self.memory_queue robimy słownik {hash: zbior danych}
+    # Idea 2: w odpowiednim słowniku zapisujemy nazwę źródło i numery kolumn do których zapisujemy
+    # Idea 3: Z każdeg generatora zapisujemy do dataframe a dataframe zapisujemy jako wartość słownika {nazwa generatora: dataframe}
+
+
+
+
+
+    # TODO: Delete selection option - unDone
+    # TODO: Implement sending data from time to time (call emitt() from time to time) - Done
+    # TODO: Agregator should forget data which it already sent - Done
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
 
@@ -30,6 +43,7 @@ class Agregator():
         self._config = {
             'method': 'http',
             'frequency': 0,
+            'pack_size': 5,
             'http':{
                 'destiantion': '127.0.0.1',
                 'destiantion_port': 5000,
@@ -130,6 +144,8 @@ class Agregator():
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
         print(self.memory_queue)
+        if self.memory_queue.shape[0] == self._config['pack_size']:
+            self.emit()
         return None
 
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
@@ -146,10 +162,12 @@ class Agregator():
             data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
         else:
             data = self.memory_queue.copy()
-        for y in range(data.shape[0]):
+        data = self.memory_queue.copy()
+        for y in range(self.memory_queue.shape[0]):
             t_str='{'
-            for x in data.columns.tolist():
-                t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
+            for x in self.memory_queue.columns.tolist():
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+            self.memory_queue.drop(index=y)
             t_str = t_str[:-1:]
             t_str += '}'
             pack.put(t_str)
@@ -190,11 +208,10 @@ class Agregator():
         if self._config['method'].lower() == 'mqtt':
             self.mqtt()
 
-
     def stop_emit(self):
         self.active = False
 
-        
+      
 
 if __name__ == "__main__":
     p = Agregator()
