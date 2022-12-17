@@ -136,7 +136,15 @@ class Agregator():
         if len(self.last_data) > 1:
             if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
-                self.memory_queue = self.memory_queue[0:0]
+                # self.memory_queue = self.memory_queue[0:0]
+                # Idea3
+                # Dodajemy nowe kolumny z boku pojawią się wartości Nan
+                self.last_data.append(data_json)
+                df = json_normalize(data_json)
+                self.memory_queue = 2
+
+
+
         self.last_data.append(data_json)
         df = json_normalize(data_json)
         if self.memory_queue.empty:
