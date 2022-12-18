@@ -37,7 +37,11 @@ class Agregator():
         CORS(self.server)
 
         self.active = True
+
+        # TODO: This flag should be on False in production env
         self.registered = False
+        # on true now because debugging purposes
+        # self.registered = True
 
         self.memory_queue = pd.DataFrame()
 
@@ -193,27 +197,39 @@ class Agregator():
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
         print('------------------')
         print(self.memory_queue)
+        print(self.memory_queue.dtypes)
         if self.memory_queue.shape[0] == self._config['pack_size']:
             self.emit()
         return None
 
+    # def selection(self, selection: str, group_function: str) -> pd.DataFrame:
+    #     if selection != '':
+    #         temp_memory = self.memory_queue.copy()
+    #         # temp_memory = temp_memory[eval(selection)]
+    #         temp_memory = temp_memory[selection]
+    #         if group_function != '':
+    #             # temp_memory = eval("temp_memory." + group_function + '()')
+    #             temp_memory = eval("temp_memory.mean(axis=0)")
+    #     return temp_memory
+
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
-        if selection != '':
-            temp_memory = self.memory_queue.copy()
-            temp_memory = temp_memory[eval(selection)]
-            if group_function != '':
-                temp_memory = eval(temp_memory + "." + group_function + '()')
+        temp_memory = self.memory_queue.copy()
+        if group_function != '':
+                # temp_memory = eval("temp_memory." + group_function + '()')
+                temp_memory = eval("temp_memory." + group_function + "(axis=0, numeric_only=True).to_frame().T")
         return temp_memory
 
     def package(self):
         pack = Queue()
         if self._config['constraints']['select'] != '' or self._config['constraints']['function'] != '':
             data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
+            print("*********************************************************")
+            print(data)
         else:
             data = self.memory_queue.copy()
-        data = self.memory_queue.copy()
-        for y in range(data.shape[0]):
-            t_str='{'
+        # data = self.memory_queue.copy()
+        # for y in range(data.shape[0]):
+        #     t_str='{'
             # Wersja z Nan
         #     # FIXME: 
         #     print(y)
@@ -227,10 +243,10 @@ class Agregator():
         # return pack
 
         # Wersja Clean
-        for y in range(self.memory_queue.shape[0]):
+        for y in range(data.shape[0]):
             t_str='{'
-            for x in self.memory_queue.columns.tolist():
-                t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+            for x in data.columns.tolist():
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
             self.memory_queue.drop(index=y, inplace=True)
             # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
             # print(self.memory_queue)
