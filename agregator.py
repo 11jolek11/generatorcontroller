@@ -22,6 +22,8 @@ class Agregator():
 
 
 
+
+
     # TODO: Delete selection option - unDone
     # TODO: Implement sending data from time to time (call emitt() from time to time) - Done
     # TODO: Agregator should forget data which it already sent - Done
@@ -81,8 +83,8 @@ class Agregator():
             elif msg.payload.decode() == "##STOP##":
                 self.stop_emit()
             # elif msg.payload.decode() == str(self.uuid) + '$%$':
-            elif temp == str(self.uuid):
-                print("Registration succesfull")
+            # elif temp == str(self.uuid):
+            #     print("Registration succesfull")
             else:
                 print('Message arrived')
                 # data_json = json.loads(msg.payload.decode())
@@ -112,8 +114,7 @@ class Agregator():
             if str(self.uuid) == content:
                 self.registered = True
                 print('Attempt sucessfull')
-            else:
-                print('Attempt failed')
+
 
 
 
@@ -173,18 +174,21 @@ class Agregator():
         self.server.run(port=9000)
 
     def agregate(self, data_json: dict) -> None:
+        # Wersja Clean
         # if len(self.last_data) > 1:
         #     if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
                 # self.memory_queue = self.memory_queue[0:0]
                 # Idea 3 dodajemy nowe kolumny z boku i pojawiają się wartości Nan
 
+        # Wersja z Nan
         self.last_data.append(data_json)
         df = json_normalize(data_json)
+
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
-            self.memory_queue= pd.concat([self.memory_queue, df])
+            self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
         print(self.memory_queue)
         if self.memory_queue.shape[0] == self._config['pack_size']:
             self.emit()
@@ -205,15 +209,39 @@ class Agregator():
         else:
             data = self.memory_queue.copy()
         data = self.memory_queue.copy()
-        for y in range(self.memory_queue.shape[0]):
+        for y in range(data.shape[0]):
             t_str='{'
-            for x in self.memory_queue.columns.tolist():
-                t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+            # Wersja z Nan
+            # FIXME: 
+            print(y)
+            temp_data = data[y].dropna(axis=1)
+            for x in temp_data.tolist():
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(temp_data[x]) + '"' + ","
             self.memory_queue.drop(index=y)
             t_str = t_str[:-1:]
             t_str += '}'
             pack.put(t_str)
         return pack
+
+
+
+
+
+
+
+
+
+
+        # Wersja Clean
+        # for y in range(self.memory_queue.shape[0]):
+        #     t_str='{'
+        #     for x in self.memory_queue.columns.tolist():
+        #         t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+        #     self.memory_queue.drop(index=y)
+        #     t_str = t_str[:-1:]
+        #     t_str += '}'
+        #     pack.put(t_str)
+        # return pack
 
     def register(self):
         self.register_agent.publish('agreg_register_8678855', str(self.uuid))
