@@ -38,6 +38,8 @@ class Agregator():
 
         self.memory_queue = pd.DataFrame()
 
+        self.register_agent = mqtt.Client(client_id=str(self.uuid), transport='websockets')
+
         self.last_data = [None]
 
         self._config = {
@@ -86,9 +88,22 @@ class Agregator():
             for topic in [self._config['mqtt']['recive_topic'], self.register_topic]:
                 mqtt_client.subscribe(topic)
             print('Connection esablished with code: ' + str(rc))
-            # Opublikuj swoje uuid jeśli frontend je zwróci (uuid + $%$) to będzie ok
             mqtt_client.publish(self.register_topic, str(self.uuid))
             # mqtt_client.subscribe("black_4567")
+
+        # Opublikuj swoje uuid jeśli frontend je zwróci (uuid + $%$) to będzie ok
+        @staticmethod
+        def reg_on_publish(client, userdata, mid):
+
+            print('Attempting to register...')
+        # check if admin panel registered controler (checks if msg equals self.uuid)
+        @staticmethod
+        def reg_on_message(client, userdata, msg):
+            client.disconnect()
+            content = msg.payload.decode()
+            if str(self.uuid) == content:
+                print('Attempt sucessfull')
+                client.disconnect()
 
 
 
@@ -176,6 +191,13 @@ class Agregator():
         return pack
 
     def register(self):
+        self.register_agent.loop_start()
+        self.register_agent.on_publish=self.reg_on_publish
+        # register_agent.on_connect=on_connect
+        self.register_agent.on_message=self.reg_on_message
+        self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
+        self.register_agent.subscribe('agreg_register_8678855')
+        self.register_agent.publish('agreg_register_8678855', str(self.uuid))
         pass
 
     def http(self):
