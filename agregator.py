@@ -61,8 +61,8 @@ class Agregator():
                 'recive_topic': 'black_1965',
             },
             'constraints': {
-                'select': '',
-                'function': '',
+                'select': 'GSML',
+                'function': 'mean',
             }
         }
 
@@ -100,7 +100,7 @@ class Agregator():
             # mqtt_client.publish(self.register_topic, str(self.uuid))
             # mqtt_client.subscribe("black_4567")
 
-        # Opublikuj swoje uuid jeśli frontend je zwróci (uuid + $%$) to będzie ok
+        # Opublikuj swoje uuid jeśli frontend je zwróci (uuid) to będzie ok
         @staticmethod
         def reg_on_publish(client, userdata, mid):
 
@@ -175,20 +175,23 @@ class Agregator():
 
     def agregate(self, data_json: dict) -> None:
         # Wersja Clean
-        # if len(self.last_data) > 1:
-        #     if data_json.keys() != self.last_data[-1].keys():
+        if len(self.last_data) > 1:
+            if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
-                # self.memory_queue = self.memory_queue[0:0]
+                self.memory_queue = self.memory_queue[0:0]
+        self.last_data.append(data_json)
+        df = json_normalize(data_json)
                 # Idea 3 dodajemy nowe kolumny z boku i pojawiają się wartości Nan
 
         # Wersja z Nan
-        self.last_data.append(data_json)
-        df = json_normalize(data_json)
+        # self.last_data.append(data_json)
+        # df = json_normalize(data_json)
 
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
+        print('------------------')
         print(self.memory_queue)
         if self.memory_queue.shape[0] == self._config['pack_size']:
             self.emit()
@@ -212,36 +215,29 @@ class Agregator():
         for y in range(data.shape[0]):
             t_str='{'
             # Wersja z Nan
-            # FIXME: 
-            print(y)
-            temp_data = data[y].dropna(axis=1)
-            for x in temp_data.tolist():
-                t_str += '"' + str(x) + '"'  + ":" + '"' + str(temp_data[x]) + '"' + ","
-            self.memory_queue.drop(index=y)
-            t_str = t_str[:-1:]
-            t_str += '}'
-            pack.put(t_str)
-        return pack
-
-
-
-
-
-
-
-
-
-
-        # Wersja Clean
-        # for y in range(self.memory_queue.shape[0]):
-        #     t_str='{'
-        #     for x in self.memory_queue.columns.tolist():
-        #         t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+        #     # FIXME: 
+        #     print(y)
+        #     temp_data = data[y].dropna(axis=1)
+        #     for x in temp_data.tolist():
+        #         t_str += '"' + str(x) + '"'  + ":" + '"' + str(temp_data[x]) + '"' + ","
         #     self.memory_queue.drop(index=y)
         #     t_str = t_str[:-1:]
         #     t_str += '}'
         #     pack.put(t_str)
         # return pack
+
+        # Wersja Clean
+        for y in range(self.memory_queue.shape[0]):
+            t_str='{'
+            for x in self.memory_queue.columns.tolist():
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(self.memory_queue[x][y]) + '"' + ","
+            self.memory_queue.drop(index=y, inplace=True)
+            # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            # print(self.memory_queue)
+            t_str = t_str[:-1:]
+            t_str += '}'
+            pack.put(t_str)
+        return pack
 
     def register(self):
         self.register_agent.publish('agreg_register_8678855', str(self.uuid))
