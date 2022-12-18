@@ -11,22 +11,6 @@ from queue import Queue
 
 
 class Agregator():
-    # TODO: Generator zapisuje dla każdego generatora dane osobno
-    # TODO cd. 
-    # Idea 1: kiedy przesyłamy jsona do agragatora to tworzymy z nazw kolumn hash który identyfikuje zbiór danych
-    # z DF self.memory_queue robimy słownik {hash: zbior danych}
-    # Idea 2: w odpowiednim słowniku zapisujemy nazwę źródło i numery kolumn do których zapisujemy
-    # Idea 3: Z każdeg generatora zapisujemy do dataframe a dataframe zapisujemy jako wartość słownika {nazwa generatora: dataframe}
-
-
-
-
-
-
-
-    # TODO: Delete selection option - unDone
-    # TODO: Implement sending data from time to time (call emitt() from time to time) - Done
-    # TODO: Agregator should forget data which it already sent - Done
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
 
@@ -52,7 +36,7 @@ class Agregator():
         self._config = {
             'method': 'http',
             'frequency': 0,
-            'pack_size': 5,
+            'pack_size': 1,
             'http':{
                 'destiantion': '127.0.0.1',
                 'destiantion_port': 5000,
@@ -65,8 +49,8 @@ class Agregator():
                 'recive_topic': 'black_1965',
             },
             'constraints': {
-                'select': 'GSML',
-                'function': 'mean',
+                'select': '',
+                'function': '',
             }
         }
 
@@ -80,31 +64,22 @@ class Agregator():
             temp = msg.payload.decode()
             print("Message arrived:")
             print(temp)
-            # if msg.payload.decode() == "##START##":
             if temp == "##START##":
                 self.emit()
-            # elif msg.payload.decode() == "##STOP##":
             elif msg.payload.decode() == "##STOP##":
                 self.stop_emit()
-            # elif msg.payload.decode() == str(self.uuid) + '$%$':
-            # elif temp == str(self.uuid):
-            #     print("Registration succesfull")
             else:
                 print('Message arrived')
                 # data_json = json.loads(msg.payload.decode())
                 data_json = json.loads(temp)
                 self.agregate(data_json)
-                # print(self.memory_queue)
 
         @staticmethod
         def on_connect(mqtt_client, userdata, flags, rc):
             for topic in [self._config['mqtt']['recive_topic']]:
                 mqtt_client.subscribe(topic)
             print('Connection esablished with code: ' + str(rc))
-            # mqtt_client.publish(self.register_topic, str(self.uuid))
-            # mqtt_client.subscribe("black_4567")
 
-        # Opublikuj swoje uuid jeśli frontend je zwróci (uuid) to będzie ok
         @staticmethod
         def reg_on_publish(client, userdata, mid):
 
@@ -125,8 +100,9 @@ class Agregator():
         # Routing
         @self.server.route('/', methods=['post'])
         def intercept():
-            data = request.form['data']
-            data_json = json.loads(data)
+            # data = request.form['data']
+            # data_json = json.loads(data)
+            data_json = request.get_json()
             # FIXME: find better solution:
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
@@ -147,11 +123,13 @@ class Agregator():
         def info():
             # TODO: add info section
             pass
-
-        # @self.server.route('/register')
-        # def register():
-        #     # TODO: add register
-        #     pass
+        # TODO: Add config
+        @self.server.route('/config', methods=['GET', 'POST'])
+        def config():
+            # TODO: check if content have good structure
+            content = request.get_json()
+            self._config = content
+            return jsonify({'config_sucess': True})
 
 
         self.register_agent.loop_start()
@@ -231,7 +209,7 @@ class Agregator():
         # for y in range(data.shape[0]):
         #     t_str='{'
             # Wersja z Nan
-        #     # FIXME: 
+        #  
         #     print(y)
         #     temp_data = data[y].dropna(axis=1)
         #     for x in temp_data.tolist():
@@ -260,29 +238,37 @@ class Agregator():
         time.sleep(10)
 
     def http(self):
+        sending = True
         data = self.package()
-        while self.active:
+        # while self.active:
+        while sending:
+            # FIXME: if niedziała
             if data.qsize() != 0:
+                print('if')
                 pload = {'data': data.get()}
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
-                requests.post(content, data = pload)
-                print(">> SENT HTTP: {} | {}".format(content, json.dumps(pload)))
+                # FIXME: only first request being send
+                r = requests.post(content, data = pload)
+                print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, json.dumps(pload)))
                 time.sleep(self._config['frequency'])
-                self.active = True
+                # self.active = True
+                sending = True
             else:
-                self.active = False
+                # self.active = False
+                sending = False
                 break
 
     def mqtt(self):
+        sending = True
         data = self.package()
-        while self.active:
+        while sending:
             if data.qsize() != 0:
                 content = (self._config['mqtt']['send_topic'], json.dumps({'data': data.get()}))
                 self.mqtt_client.publish(content[0], content[1])
                 time.sleep(self._config['frequency'])
-                self.active = True
+                ssending = True
             else:
-                self.active = False
+                sending = False
                 break
 
     def emit(self):
