@@ -133,16 +133,18 @@ class Agregator():
         self.server.run(port=9000, debug=True)
 
     def agregate(self, data_json: dict) -> None:
-        if len(self.last_data) > 1:
-            if data_json.keys() != self.last_data[-1].keys():
+        # if len(self.last_data) > 1:
+        #     if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
-                self.memory_queue = self.memory_queue[0:0]
+                # self.memory_queue = self.memory_queue[0:0]
+                # Idea 3 dodajemy nowe kolumny z boku i pojawiają się wartości Nan
+
         self.last_data.append(data_json)
         df = json_normalize(data_json)
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
-            self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
+            self.memory_queue= pd.concat([self.memory_queue, df])
         print(self.memory_queue)
         if self.memory_queue.shape[0] == self._config['pack_size']:
             self.emit()
