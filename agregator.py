@@ -35,6 +35,7 @@ class Agregator():
         CORS(self.server)
 
         self.active = True
+        self.registered = False
 
         self.memory_queue = pd.DataFrame()
 
@@ -70,25 +71,31 @@ class Agregator():
 
         @staticmethod
         def on_message(client, userdata, msg):
-            # temp = msg.payload.decode()
-            if msg.payload.decode() == "##START##":
+            temp = msg.payload.decode()
+            print("Message arrived:")
+            print(temp)
+            # if msg.payload.decode() == "##START##":
+            if temp == "##START##":
                 self.emit()
+            # elif msg.payload.decode() == "##STOP##":
             elif msg.payload.decode() == "##STOP##":
                 self.stop_emit()
-            elif msg.payload.decode() == str(self.uuid) + '$%$':
+            # elif msg.payload.decode() == str(self.uuid) + '$%$':
+            elif temp == str(self.uuid):
                 print("Registration succesfull")
             else:
                 print('Message arrived')
-                data_json = json.loads(msg.payload.decode())
+                # data_json = json.loads(msg.payload.decode())
+                data_json = json.loads(temp)
                 self.agregate(data_json)
                 # print(self.memory_queue)
 
         @staticmethod
         def on_connect(mqtt_client, userdata, flags, rc):
-            for topic in [self._config['mqtt']['recive_topic'], self.register_topic]:
+            for topic in [self._config['mqtt']['recive_topic']]:
                 mqtt_client.subscribe(topic)
             print('Connection esablished with code: ' + str(rc))
-            mqtt_client.publish(self.register_topic, str(self.uuid))
+            # mqtt_client.publish(self.register_topic, str(self.uuid))
             # mqtt_client.subscribe("black_4567")
 
         # Opublikuj swoje uuid jeśli frontend je zwróci (uuid + $%$) to będzie ok
@@ -100,10 +107,13 @@ class Agregator():
         @staticmethod
         def reg_on_message(client, userdata, msg):
             client.disconnect()
+            client.loop_stop()
             content = msg.payload.decode()
             if str(self.uuid) == content:
+                self.registered = True
                 print('Attempt sucessfull')
-                client.disconnect()
+            else:
+                print('Attempt failed')
 
 
 
@@ -139,13 +149,28 @@ class Agregator():
         #     pass
 
 
+        self.register_agent.loop_start()
+        self.register_agent.on_publish=reg_on_publish
+
+        self.register_agent.on_message=reg_on_message
+        self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
+        self.register_agent.subscribe(self.register_topic)
+
+
+        while not self.registered:
+            self.register_agent.subscribe(self.register_topic)
+            self.register()
+
+
+
         self.mqtt_client = mqtt.Client(client_id=str(self.uuid), transport='websockets')
         self.mqtt_client.loop_start()
         self.mqtt_client.on_publish=on_publish
         self.mqtt_client.on_connect=on_connect
         self.mqtt_client.on_message=on_message
         self.mqtt_client.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
-        self.server.run(port=9000, debug=True)
+        # self.server.run(port=9000, debug=True)
+        self.server.run(port=9000)
 
     def agregate(self, data_json: dict) -> None:
         # if len(self.last_data) > 1:
@@ -191,14 +216,8 @@ class Agregator():
         return pack
 
     def register(self):
-        self.register_agent.loop_start()
-        self.register_agent.on_publish=self.reg_on_publish
-        # register_agent.on_connect=on_connect
-        self.register_agent.on_message=self.reg_on_message
-        self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
-        self.register_agent.subscribe('agreg_register_8678855')
         self.register_agent.publish('agreg_register_8678855', str(self.uuid))
-        pass
+        time.sleep(10)
 
     def http(self):
         data = self.package()
