@@ -39,6 +39,7 @@ class Generator:
             y = y % dict_len
             for x in labels:
                 t_str += '"' + str(x) + '"'  + ":" + '"' + str(holder[x][y]) + '"' + ","
+                # t_str += '"' + str(x) + '"'  + ":"  + str(holder[x][y]) + ","
             t_str = t_str[:-1:]
             t_str += '}'
             self.buffer.append(t_str)
@@ -58,7 +59,9 @@ class Generator:
         client.on_connect=self.on_connect
         client.connect(self._mqtt_config['broker'], int(self._mqtt_config['port']))
         while self.active:
-            client.publish(self._mqtt_config['topic'], json.dumps({'data': next(self.temp)}))
+            p = next(self.temp)
+            print(' {} - {}'. format(p, type(p)))
+            client.publish(self._mqtt_config['topic'], json.dumps(p))
             time.sleep(self.frequency)
         client.disconnect()
 
