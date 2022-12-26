@@ -19,7 +19,7 @@ class Agregator():
         self.port = 9000
 
         self.register_channel = "mqtt"
-        self.register_topic = "clock-76467"
+        self.register_topic = "goblin-5644"
 
         self.server = Flask(str(self.uuid))
         CORS(self.server)
@@ -50,8 +50,8 @@ class Agregator():
             'mqtt': {
                 'broker': 'test.mosquitto.org',
                 'broker_port': 8080,
-                'send_topic': 'baltazar',
-                'recive_topic': 'black_1965',
+                'send_topic': 'send_5948',
+                'recive_topic': 'recive_4543',
             },
             'constraints': {
                 'query': '',
@@ -105,7 +105,7 @@ class Agregator():
         # Routing
         @self.server.route('/', methods=['post'])
         def intercept():
-            print("INtercepted")
+            print("Intercepted")
             data_json = request.get_json()
             # FIXME: find better solution:
             self.agregate(data_json)
@@ -206,7 +206,7 @@ class Agregator():
         return pack
 
     def register(self):
-        self.register_agent.publish('agreg_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
+        self.register_agent.publish('filter_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
         time.sleep(10)
 
     def http(self):
