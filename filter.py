@@ -11,12 +11,12 @@ from queue import Queue
 
 
 
-class Agregator():
+class Filter():
     def __init__(self) -> None:
         self.uuid = uuid.uuid4()
 
         self.ip = '127.0.0.1'
-        self.port = 9000
+        self.port = 8500
 
         self.register_channel = "mqtt"
         self.register_topic = "goblin-5644"
@@ -38,7 +38,7 @@ class Agregator():
         self.last_data = [None]
 
         self.sending = False
-
+        # https://www.listendata.com/2019/07/how-to-filter-pandas-dataframe.html
         self._config = {
             'method': 'http',
             'frequency': 0,
@@ -207,7 +207,7 @@ class Agregator():
 
     def register(self):
         self.register_agent.publish('filter_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
-        time.sleep(10)
+        time.sleep(2)
 
     def http(self):
         self.sending = True
@@ -252,4 +252,4 @@ class Agregator():
 
 
 if __name__ == "__main__":
-    p = Agregator()
+    p = Filter()
