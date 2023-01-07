@@ -67,9 +67,16 @@ class Generator:
 
     def http(self):
         while self.active:
-            pload = {'data': next(self.temp)}
+            pload = json.dumps({'data': next(self.temp)})
+            print("ggg")
+            print(pload)
+            url = 'http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/'
+            headers = {
+              'Content-Type': 'application/json'
+            }
             try:
-                requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
+                requests.request('POST', url, data=pload, headers=headers)
+                # requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
             except:
                 print('\033[91m>> Connection dropped by peer <<\033[0m')
                 break

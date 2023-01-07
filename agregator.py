@@ -44,7 +44,7 @@ class Agregator():
             'pack_size': 1,
             'http':{
                 'destiantion': '127.0.0.1',
-                'destiantion_port': 5000,
+                'destiantion_port': 8500,
                 'destiantion_path': '/'
             },
             'mqtt': {
@@ -266,7 +266,7 @@ class Agregator():
     def register(self):
         # str(self.uuid)
         self.register_agent.publish('agreg_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
-        time.sleep(10)
+        time.sleep(2)
 
     def http(self):
         self.sending = True
@@ -275,11 +275,21 @@ class Agregator():
         while self.sending:
             # FIXME: if niedziała
             if data.qsize() != 0:
-                print('if')
-                pload = {'data': data.get()}
+                x = data.get()
+                print(x)
+                print(type(x))
+                x = x[x.index(':')+2:-2]
+                x = json.loads(x)
+                print(x)
+                print(type(x))
+                pload = json.dumps(x)
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
                 # FIXME: only first request being send
-                r = requests.post(content, data = pload)
+                headers = {
+                  'Content-Type': 'application/json'
+                }
+                # r = requests.post(content, data = pload)
+                r = requests.request('POST', content, data=pload, headers=headers)
                 print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, json.dumps(pload)))
                 time.sleep(int(self._config['frequency']))
                 # self.active = True

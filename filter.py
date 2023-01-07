@@ -54,7 +54,7 @@ class Filter():
                 'recive_topic': 'recive_4543',
             },
             'constraints': {
-                'query': '',
+                'query': 'GMSL',
             }
         }
 
@@ -81,6 +81,8 @@ class Filter():
                 print(type(data_json))
                 print(data_json)
                 data_json = json.loads(data_json)
+                data_json = json.loads(data_json)
+                print(type(data_json))
                 self.agregate(data_json)
 
         @staticmethod
@@ -106,7 +108,10 @@ class Filter():
         @self.server.route('/', methods=['post'])
         def intercept():
             print("Intercepted")
-            data_json = request.get_json()
+            # data_json = json.loads(request.json)
+            data_json = request.json
+            print(f"INtercepted {type(data_json)}")
+            print(f"INtercepted {data_json}")
             # FIXME: find better solution:
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
@@ -169,10 +174,19 @@ class Filter():
 
     def agregate(self, data_json:dict) -> None:
         # Wersja Clean
-        if len(self.last_data) > 1:
-            if data_json.keys() != self.last_data[-1].keys():
-                # Clear DataFrame and prepare for next type of data
-                self.memory_queue = self.memory_queue[0:0]
+        # print("$$$")
+        # # data_json.replace("'", '"')
+        # print(data_json)
+        # print(type(data_json))
+        # data_json = json.loads(data_json)
+
+
+        # if len(self.last_data) > 1:
+        #     print(type(data_json))
+        #     print(type(self.last_data))
+        #     if data_json.keys() != self.last_data[-1].keys():
+        #         # Clear DataFrame and prepare for next type of data
+        #         self.memory_queue = self.memory_queue[0:0]
         self.last_data.append(data_json)
         df = json_normalize(data_json)
 
@@ -180,13 +194,22 @@ class Filter():
             self.memory_queue = df
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
+        print("bbb")
         if self.memory_queue.shape[0] == 1:
+            print("eee")
             self.emit()
+        print("aaa")
         return None
 
     def selection(self, query: str) -> pd.DataFrame:
         temp_memory = self.memory_queue.copy()
-        return temp_memory[query]
+        print("########")
+        print(temp_memory)
+        # query = 'temp_memory.' + query
+        # x = temp_memory[eval(query)]
+        x = temp_memory[[query]]
+        print(x)
+        return x
 
     def package(self):
         pack = Queue()
@@ -195,6 +218,8 @@ class Filter():
         else:
             data = self.memory_queue.copy()
 
+        print("Series problem")
+        print(self.memory_queue)
         for y in range(data.shape[0]):
             t_str='{'
             for x in data.columns.tolist():
@@ -216,11 +241,15 @@ class Filter():
             # FIXME: if niedziała
             if data.qsize() != 0:
                 print('if')
-                pload = {'data': data.get()}
+                pload = json.dumps({'data': data.get()})
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
                 # FIXME: only first request being send
-                r = requests.post(content, data = pload)
-                print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, json.dumps(pload)))
+                headers = {
+                  'Content-Type': 'application/json'
+                }
+                r = requests.request('POST', content, data=pload, headers=headers)
+                # r = requests.post(content, data = pload)
+                print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, pload))
                 time.sleep(int(self._config['frequency']))
                 self.sending = True
             else:
