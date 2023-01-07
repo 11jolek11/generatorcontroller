@@ -207,7 +207,7 @@ class Filter():
         print(temp_memory)
         # TODO: extra: try query function
         # query = 'temp_memory.' + query
-        # x = temp_memory[eval(query)]
+        # x = temp_memory[eval(query)]j
         x = temp_memory[[query]]
         print(x)
         return x
