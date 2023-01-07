@@ -150,8 +150,8 @@ class Agregator():
         self.register_agent.on_publish=reg_on_publish
 
         self.register_agent.on_message=reg_on_message
-        # self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
-        self.register_agent.connect("broker.emqx.io", 1883)
+        self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
+        # self.register_agent.connect("broker.emqx.io", 1883)
         self.register_agent.subscribe(self.register_topic)
 
 
