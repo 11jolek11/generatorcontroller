@@ -26,7 +26,7 @@ class Filter():
 
         self.active = True
 
-        # TODO: This flag should be on False in production env
+        # This flag should be on False in production env
         self.registered = False
         # on true now because debugging purposes
         # self.registered = True
@@ -57,7 +57,7 @@ class Filter():
                 'query': 'GMSL',
             }
         }
-
+        # FIXME: FIX MQTT CONNECTION
         # MQTT connection callbacks
         @staticmethod
         def on_publish(client, userdata, mid):
@@ -131,7 +131,6 @@ class Filter():
             
         @self.server.route('/info')
         def info():
-            # TODO: add info section
             return jsonify({'config': self._config})
 
         @self.server.route('/status', methods=['post', ' get'])
@@ -140,10 +139,8 @@ class Filter():
             return jsonify({'status': self.active, 'sending': self.sending})
 
 
-        # TODO: Add config
         @self.server.route('/config', methods=['GET', 'POST'])
         def config():
-            # TODO: check if content have good structure
             content = request.get_json()
             print(content)
             self._config = content
@@ -151,6 +148,7 @@ class Filter():
 
 
         self.register_agent.loop_start()
+        self.register_agent.on_connect=on_connect
         self.register_agent.on_publish=reg_on_publish
 
         self.register_agent.on_message=reg_on_message
@@ -173,6 +171,7 @@ class Filter():
         self.server.run(port=self.port)
 
     def agregate(self, data_json:dict) -> None:
+        print('Agregation...')
         # Wersja Clean
         # print("$$$")
         # # data_json.replace("'", '"')
@@ -192,6 +191,7 @@ class Filter():
 
         if self.memory_queue.empty:
             self.memory_queue = df
+            print("if inside agregte()")
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
         print("bbb")
@@ -201,7 +201,8 @@ class Filter():
         print("aaa")
         return None
 
-    def selection(self, query: str) -> pd.DataFrame:
+    def selection(self, query: str, selection: dict) -> pd.DataFrame:
+        print('Selecting...')
         temp_memory = self.memory_queue.copy()
         print("########")
         print(temp_memory)
@@ -213,9 +214,10 @@ class Filter():
         return x
 
     def package(self):
+        print("Packing...")
         pack = Queue()
         if self._config['constraints']['query'] != '':
-            data = self.selection(self._config['constraints']['query'])
+            data = self.selection(self._config['constraints']['query'], self._config['constraints']['selection'])
         else:
             data = self.memory_queue.copy()
 
