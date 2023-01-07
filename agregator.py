@@ -8,7 +8,6 @@ import uuid
 import pandas as pd
 from pandas import json_normalize
 from queue import Queue
-import sys
 
 
 class Agregator():
@@ -45,7 +44,7 @@ class Agregator():
             'pack_size': 1,
             'http':{
                 'destiantion': '127.0.0.1',
-                'destiantion_port': 5000,
+                'destiantion_port': 8500,
                 'destiantion_path': '/'
             },
             'mqtt': {
@@ -77,10 +76,10 @@ class Agregator():
             else:
                 print('Message arrived')
                 # data_json = json.loads(msg.payload.decode())
-                print(type(temp))
-                print(temp)
+                # print(type(temp))
+                # print(temp)
                 data_json = json.loads(temp)
-                print("!!!!!!")
+                # print("!!!!!!")
                 # FIXME: Data_json jest stringiem a nie powinien być
                 print(type(data_json))
                 print(data_json)
@@ -95,8 +94,8 @@ class Agregator():
 
         @staticmethod
         def reg_on_publish(client, userdata, mid):
-
             print('Attempting to register...')
+
         # check if admin panel registered controler (checks if msg equals self.uuid)
         @staticmethod
         def reg_on_message(client, userdata, msg):
@@ -107,17 +106,13 @@ class Agregator():
                 self.registered = True
                 print('Attempt sucessfull')
 
-
-
-
         # Routing
         @self.server.route('/', methods=['post'])
         def intercept():
-            print("INtercepted")
+            print("Intercepted")
             # data = request.form['data']
             # data_json = json.loads(data)
             data_json = request.get_json()
-            # FIXME: find better solution:
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
 
@@ -136,7 +131,6 @@ class Agregator():
             
         @self.server.route('/info')
         def info():
-            # TODO: add info section
             return jsonify({'config': self._config})
 
         @self.server.route('/status', methods=['post', ' get'])
@@ -145,22 +139,19 @@ class Agregator():
             # if str(self.uuid) == uuid:
             return jsonify({'status': self.active, 'sending': self.sending})
 
-
-        # TODO: Add config
         @self.server.route('/config', methods=['GET', 'POST'])
         def config():
-            # TODO: check if content have good structure
             content = request.get_json()
             print(content)
             self._config = content
             return jsonify({'config_sucess': True})
-
 
         self.register_agent.loop_start()
         self.register_agent.on_publish=reg_on_publish
 
         self.register_agent.on_message=reg_on_message
         self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
+        # self.register_agent.connect("broker.emqx.io", 1883)
         self.register_agent.subscribe(self.register_topic)
 
 
@@ -168,32 +159,29 @@ class Agregator():
             self.register_agent.subscribe(self.register_topic)
             self.register()
 
-
-
         self.mqtt_client = mqtt.Client(client_id=str(self.uuid), transport='websockets')
         self.mqtt_client.loop_start()
         self.mqtt_client.on_publish=on_publish
         self.mqtt_client.on_connect=on_connect
         self.mqtt_client.on_message=on_message
         self.mqtt_client.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
-        # self.server.run(port=9000, debug=True)
         self.server.run(port=self.port)
 
     def agregate(self, data_json:dict) -> None:
-        print("???????????????????????????")
-        print(type(data_json))
+        # print("???????????????????????????")
+        # print(type(data_json))
         # Wersja Clean
         if len(self.last_data) > 1:
             if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
                 self.memory_queue = self.memory_queue[0:0]
         self.last_data.append(data_json)
-        print("~~~~~~~~~~~~~~~~")
-        print(type(data_json))
+        # print("~~~~~~~~~~~~~~~~")
+        # print(type(data_json))
         df = json_normalize(data_json)
-        print("7&&&&&&&&&&&&&")
-        print(df)
-        print(df.dtypes)
+        # print("7&&&&&&&&&&&&&")
+        # print(df)
+        # print(df.dtypes)
                 # Idea 3 dodajemy nowe kolumny z boku i pojawiają się wartości Nan
 
         # Wersja z Nan
@@ -204,9 +192,9 @@ class Agregator():
             self.memory_queue = df
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
-        print('------------------')
-        print(self.memory_queue)
-        print(self.memory_queue.dtypes)
+        # print('------------------')
+        # print(self.memory_queue)
+        # print(self.memory_queue.dtypes)
         if self.memory_queue.shape[0] == int(self._config['pack_size']):
             self.emit()
         return None
@@ -223,10 +211,10 @@ class Agregator():
 
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
         temp_memory = self.memory_queue.copy()
-        print("++++++++++++++++++++++++++++++++")
-        print(type(temp_memory))
-        print(temp_memory)
-        print("++++++++++++++++++++++++++++++++")
+        # print("++++++++++++++++++++++++++++++++")
+        # print(type(temp_memory))
+        # print(temp_memory)
+        # print("++++++++++++++++++++++++++++++++")
         # if group_function != '':
         #         # temp_memory = eval("temp_memory." + group_function + '()')
         #         temp_memory = eval("temp_memory." + group_function + "(axis=0, numeric_only=True).to_frame().T")
@@ -235,16 +223,16 @@ class Agregator():
             # temp_memory = eval("temp_memory." + group_function + "(axis=0, numeric_only=True).to_frame().T")
             temp_memory = eval("temp_memory." + str(group_function) + "(axis=0, numeric_only=True).to_frame().T")
             # temp_memory = eval("temp_memory.mean(axis=0, numeric_only=True).to_frame().T")
-            print(temp_memory)
-            print("++++++++++++++++++++++++++++++++")
+            # print(temp_memory)
+            # print("++++++++++++++++++++++++++++++++")
         return temp_memory
 
     def package(self):
         pack = Queue()
         if self._config['constraints']['select'] != '' or self._config['constraints']['function'] != '':
             data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
-            print("*********************************************************")
-            print(data)
+            # print("*********************************************************")
+            # print(data)
         else:
             data = self.memory_queue.copy()
         # data = self.memory_queue.copy()
@@ -278,7 +266,7 @@ class Agregator():
     def register(self):
         # str(self.uuid)
         self.register_agent.publish('agreg_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
-        time.sleep(10)
+        time.sleep(2)
 
     def http(self):
         self.sending = True
@@ -287,11 +275,21 @@ class Agregator():
         while self.sending:
             # FIXME: if niedziała
             if data.qsize() != 0:
-                print('if')
-                pload = {'data': data.get()}
+                x = data.get()
+                print(x)
+                print(type(x))
+                x = x[x.index(':')+2:-2]
+                x = json.loads(x)
+                print(x)
+                print(type(x))
+                pload = json.dumps(x)
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
                 # FIXME: only first request being send
-                r = requests.post(content, data = pload)
+                headers = {
+                  'Content-Type': 'application/json'
+                }
+                # r = requests.post(content, data = pload)
+                r = requests.request('POST', content, data=pload, headers=headers)
                 print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, json.dumps(pload)))
                 time.sleep(int(self._config['frequency']))
                 # self.active = True
