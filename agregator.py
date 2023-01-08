@@ -75,14 +75,7 @@ class Agregator():
                 self.stop_emit()
             else:
                 print('Message arrived')
-                # data_json = json.loads(msg.payload.decode())
-                # print(type(temp))
-                # print(temp)
                 data_json = json.loads(temp)
-                # print("!!!!!!")
-                # FIXME: Data_json jest stringiem a nie powinien być
-                print(type(data_json))
-                print(data_json)
                 data_json = json.loads(data_json)
                 self.agregate(data_json)
 
@@ -110,8 +103,6 @@ class Agregator():
         @self.server.route('/', methods=['post'])
         def intercept():
             print("Intercepted")
-            # data = request.form['data']
-            # data_json = json.loads(data)
             data_json = request.get_json()
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
@@ -135,14 +126,11 @@ class Agregator():
 
         @self.server.route('/status', methods=['post', ' get'])
         def status():
-            print("Status requested")
-            # if str(self.uuid) == uuid:
             return jsonify({'status': self.active, 'sending': self.sending})
 
         @self.server.route('/config', methods=['GET', 'POST'])
         def config():
             content = request.get_json()
-            print(content)
             self._config = content
             return jsonify({'config_sucess': True})
 
@@ -151,7 +139,6 @@ class Agregator():
 
         self.register_agent.on_message=reg_on_message
         self.register_agent.connect(self._config['mqtt']['broker'], int(self._config['mqtt']['broker_port']))
-        # self.register_agent.connect("broker.emqx.io", 1883)
         self.register_agent.subscribe(self.register_topic)
 
 
@@ -168,112 +155,54 @@ class Agregator():
         self.server.run(port=self.port)
 
     def agregate(self, data_json:dict) -> None:
-        # print("???????????????????????????")
-        # print(type(data_json))
-        # Wersja Clean
         if len(self.last_data) > 1:
             if data_json.keys() != self.last_data[-1].keys():
                 # Clear DataFrame and prepare for next type of data
                 self.memory_queue = self.memory_queue[0:0]
         self.last_data.append(data_json)
-        # print("~~~~~~~~~~~~~~~~")
-        # print(type(data_json))
         df = json_normalize(data_json)
-        # print("7&&&&&&&&&&&&&")
-        # print(df)
-        # print(df.dtypes)
-                # Idea 3 dodajemy nowe kolumny z boku i pojawiają się wartości Nan
-
-        # Wersja z Nan
-        # self.last_data.append(data_json)
-        # df = json_normalize(data_json)
 
         if self.memory_queue.empty:
             self.memory_queue = df
         else:
             self.memory_queue= pd.concat([self.memory_queue, df], ignore_index=True)
-        # print('------------------')
-        # print(self.memory_queue)
-        # print(self.memory_queue.dtypes)
+
         if self.memory_queue.shape[0] == int(self._config['pack_size']):
             self.emit()
         return None
 
-    # def selection(self, selection: str, group_function: str) -> pd.DataFrame:
-    #     if selection != '':
-    #         temp_memory = self.memory_queue.copy()
-    #         # temp_memory = temp_memory[eval(selection)]
-    #         temp_memory = temp_memory[selection]
-    #         if group_function != '':
-    #             # temp_memory = eval("temp_memory." + group_function + '()')
-    #             temp_memory = eval("temp_memory.mean(axis=0)")
-    #     return temp_memory
-
     def selection(self, selection: str, group_function: str) -> pd.DataFrame:
         temp_memory = self.memory_queue.copy()
-        # print("++++++++++++++++++++++++++++++++")
-        # print(type(temp_memory))
-        # print(temp_memory)
-        # print("++++++++++++++++++++++++++++++++")
-        # if group_function != '':
-        #         # temp_memory = eval("temp_memory." + group_function + '()')
-        #         temp_memory = eval("temp_memory." + group_function + "(axis=0, numeric_only=True).to_frame().T")
         temp_memory[selection] = temp_memory[selection].astype('float')
         if group_function != '':
-            # temp_memory = eval("temp_memory." + group_function + "(axis=0, numeric_only=True).to_frame().T")
             temp_memory = eval("temp_memory." + str(group_function) + "(axis=0, numeric_only=True).to_frame().T")
-            # temp_memory = eval("temp_memory.mean(axis=0, numeric_only=True).to_frame().T")
-            # print(temp_memory)
-            # print("++++++++++++++++++++++++++++++++")
         return temp_memory
 
     def package(self):
         pack = Queue()
         if self._config['constraints']['select'] != '' or self._config['constraints']['function'] != '':
             data = self.selection(self._config['constraints']['select'], self._config['constraints']['function'])
-            # print("*********************************************************")
-            # print(data)
         else:
             data = self.memory_queue.copy()
-        # data = self.memory_queue.copy()
-        # for y in range(data.shape[0]):
-        #     t_str='{'
-            # Wersja z Nan
-        #  
-        #     print(y)
-        #     temp_data = data[y].dropna(axis=1)
-        #     for x in temp_data.tolist():
-        #         t_str += '"' + str(x) + '"'  + ":" + '"' + str(temp_data[x]) + '"' + ","
-        #     self.memory_queue.drop(index=y)
-        #     t_str = t_str[:-1:]
-        #     t_str += '}'
-        #     pack.put(t_str)
-        # return pack
 
-        # Wersja Clean
         for y in range(data.shape[0]):
             t_str='{'
             for x in data.columns.tolist():
                 t_str += '"' + str(x) + '"'  + ":" + '"' + str(data[x][y]) + '"' + ","
             self.memory_queue.drop(index=y, inplace=True)
-            # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-            # print(self.memory_queue)
             t_str = t_str[:-1:]
             t_str += '}'
             pack.put(t_str)
         return pack
 
     def register(self):
-        # str(self.uuid)
         self.register_agent.publish('agreg_register_8678855', json.dumps({"uuid": str(self.uuid), "config": self._config, "ip": self.ip, "port": self.port}))
         time.sleep(2)
 
     def http(self):
         self.sending = True
         data = self.package()
-        # while self.active:
         while self.sending:
-            # FIXME: if niedziała
             if data.qsize() != 0:
                 x = data.get()
                 print(x)
@@ -284,18 +213,14 @@ class Agregator():
                 print(type(x))
                 pload = json.dumps(x)
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
-                # FIXME: only first request being send
                 headers = {
                   'Content-Type': 'application/json'
                 }
-                # r = requests.post(content, data = pload)
                 r = requests.request('POST', content, data=pload, headers=headers)
                 print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, json.dumps(pload)))
                 time.sleep(int(self._config['frequency']))
-                # self.active = True
                 self.sending = True
             else:
-                # self.active = False
                 self.sending = False
                 break
 
@@ -320,7 +245,6 @@ class Agregator():
 
     def stop_emit(self):
         self.active = False
-        # sys.exit(0)
 
       
 

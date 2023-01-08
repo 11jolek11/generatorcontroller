@@ -57,7 +57,6 @@ class Filter():
                 'query': 'GMSL',
             }
         }
-        # FIXME: FIX MQTT CONNECTION
         # MQTT connection callbacks
         @staticmethod
         def on_publish(client, userdata, mid):
@@ -73,16 +72,9 @@ class Filter():
             elif msg.payload.decode() == "##STOP##":
                 self.stop_emit()
             else:
-                print('Message arrived')
-                print(type(temp))
-                print(temp)
                 data_json = json.loads(temp)
-                # FIXME: Data_json jest stringiem a nie powinien być
-                print(type(data_json))
-                print(data_json)
                 data_json = json.loads(data_json)
                 data_json = json.loads(data_json)
-                print(type(data_json))
                 self.agregate(data_json)
 
         @staticmethod
@@ -107,12 +99,7 @@ class Filter():
         # Routing
         @self.server.route('/', methods=['post'])
         def intercept():
-            print("Intercepted")
-            # data_json = json.loads(request.json)
             data_json = request.json
-            print(f"INtercepted {type(data_json)}")
-            print(f"INtercepted {data_json}")
-            # FIXME: find better solution:
             self.agregate(data_json)
             return jsonify({'status': 'Ok'})
 
@@ -124,7 +111,6 @@ class Filter():
 
         @self.server.route('/stop', methods=['post', ' get'])
         def stop():
-            print("STOP")
             self.active = False
             self.stop_emit()
             return jsonify({'status': 'STOP'})
@@ -135,7 +121,6 @@ class Filter():
 
         @self.server.route('/status', methods=['post', ' get'])
         def status():
-            print("Status requested")
             return jsonify({'status': self.active, 'sending': self.sending})
 
 
@@ -145,7 +130,6 @@ class Filter():
             print(content)
             self._config = content
             return jsonify({'config_sucess': True})
-
 
         self.register_agent.loop_start()
         self.register_agent.on_connect=on_connect
@@ -171,21 +155,6 @@ class Filter():
         self.server.run(port=self.port)
 
     def agregate(self, data_json:dict) -> None:
-        print('Agregation...')
-        # Wersja Clean
-        # print("$$$")
-        # # data_json.replace("'", '"')
-        # print(data_json)
-        # print(type(data_json))
-        # data_json = json.loads(data_json)
-
-
-        # if len(self.last_data) > 1:
-        #     print(type(data_json))
-        #     print(type(self.last_data))
-        #     if data_json.keys() != self.last_data[-1].keys():
-        #         # Clear DataFrame and prepare for next type of data
-        #         self.memory_queue = self.memory_queue[0:0]
         self.last_data.append(data_json)
         df = json_normalize(data_json)
 
@@ -207,14 +176,11 @@ class Filter():
         print("########")
         print(temp_memory)
         # TODO: extra: try query function
-        # query = 'temp_memory.' + query
-        # x = temp_memory[eval(query)]j
         x = temp_memory[[query]]
         print(x)
         return x
 
     def package(self):
-        print("Packing...")
         pack = Queue()
         if self._config['constraints']['query'] != '':
             data = self.selection(self._config['constraints']['query'], self._config['constraints']['selection'])
@@ -241,17 +207,14 @@ class Filter():
         self.sending = True
         data = self.package()
         while self.sending:
-            # FIXME: if niedziała
             if data.qsize() != 0:
                 print('if')
                 pload = json.dumps({'data': data.get()})
                 content = 'http://' + self._config['http']['destiantion'] +":"+ str(self._config['http']['destiantion_port']) + str(self._config['http']['destiantion_path'])
-                # FIXME: only first request being send
                 headers = {
                   'Content-Type': 'application/json'
                 }
                 r = requests.request('POST', content, data=pload, headers=headers)
-                # r = requests.post(content, data = pload)
                 print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, pload))
                 time.sleep(int(self._config['frequency']))
                 self.sending = True
@@ -285,4 +248,3 @@ class Filter():
 
 if __name__ == "__main__":
     p = Filter()
-# checksum
