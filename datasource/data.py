@@ -5,8 +5,13 @@ from abc import ABC, abstractmethod
 
 class Data():
     def __init__(self, path) -> None:
-        # print(path)
+
+        print('@@@@@@@@@@@')
+        print(path)
+        print(os.path.exists(path))
+        print('@@@@@@@@@@@')
         if os.path.exists(path):
+            print(1)
             self.s_content = None
             self._path = path
         else:
@@ -85,11 +90,12 @@ class DataCSV(Data):
 
 
 if __name__ == "__main__":
-    pass
-    # data = DataCSV('./datasets/sea_level.csv')
+
+    data = DataCSV('./datasets/sea_level.csv')
     # data.sample()
     # print()
-    # labels, holder = data.expose()
+    labels, holder = data.expose()
+    print(holder)
 
     # print(max(list(holder[labels[0]].keys())))
 

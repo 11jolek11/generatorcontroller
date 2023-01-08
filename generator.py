@@ -4,6 +4,7 @@ import time
 import requests
 import paho.mqtt.client as mqtt
 import json
+import os
 
 
 class Generator:
@@ -28,14 +29,19 @@ class Generator:
     def load(self):
         self.temp = iter(self.buffer)
         self._data_config = self._config['data']
+        print('&&&&&&&')
+        print(os.path.exists(self._data_config['source']))
         data = DataCSV(self._data_config['source'])
         labels, holder = data.expose()
         dict_len = max(list(holder[labels[0]].keys()))
         for y in range(6000):
-            t_str=""
+            t_str="{"
             y = y % dict_len
             for x in labels:
-                t_str += str(holder[x][y]) + "  " 
+                t_str += '"' + str(x) + '"'  + ":" + '"' + str(holder[x][y]) + '"' + ","
+                # t_str += '"' + str(x) + '"'  + ":"  + str(holder[x][y]) + ","
+            t_str = t_str[:-1:]
+            t_str += '}'
             self.buffer.append(t_str)
 
     def send(self):
@@ -53,15 +59,24 @@ class Generator:
         client.on_connect=self.on_connect
         client.connect(self._mqtt_config['broker'], int(self._mqtt_config['port']))
         while self.active:
-            client.publish(self._mqtt_config['topic'], json.dumps({'data': next(self.temp)}))
+            p = next(self.temp)
+            print(' {} - {}'. format(p, type(p)))
+            client.publish(self._mqtt_config['topic'], json.dumps(p))
             time.sleep(self.frequency)
         client.disconnect()
 
     def http(self):
         while self.active:
-            pload = {'data': next(self.temp)}
+            pload = json.dumps({'data': next(self.temp)})
+            print("ggg")
+            print(pload)
+            url = 'http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/'
+            headers = {
+              'Content-Type': 'application/json'
+            }
             try:
-                requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
+                requests.request('POST', url, data=pload, headers=headers)
+                # requests.post('http://' + self._http_config['host'] +":"+ str(self._http_config['port']) + '/', data = pload)
             except:
                 print('\033[91m>> Connection dropped by peer <<\033[0m')
                 break
