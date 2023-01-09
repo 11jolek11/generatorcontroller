@@ -166,13 +166,14 @@ class Filter:
         else:
             self.memory_queue = pd.concat([self.memory_queue, df], ignore_index=True)
         print("bbb")
-        if self.memory_queue.shape[0] == 1:
+        if True:
+        # if self.memory_queue.shape[0] == 1:
             print("eee")
             self.emit()
         print("aaa")
         return None
 
-    def selection(self, query: str, selection: dict) -> pd.DataFrame:
+    def selection(self, query: str) -> pd.DataFrame:
         print("Selecting...")
         temp_memory = self.memory_queue.copy()
         print("########")
@@ -187,7 +188,7 @@ class Filter:
         if self._config["constraints"]["query"] != "":
             data = self.selection(
                 self._config["constraints"]["query"],
-                self._config["constraints"]["selection"],
+                # self._config["constraints"]["selection"],
             )
         else:
             data = self.memory_queue.copy()
