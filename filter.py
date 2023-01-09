@@ -55,7 +55,8 @@ class Filter:
                 "recive_topic": "recive_4543",
             },
             "constraints": {
-                "query": "GMSL",
+                # x.query("col1=='2'")
+                "query": "df.GMSL=='3.9'",
             },
         }
         # MQTT connection callbacks
@@ -168,10 +169,8 @@ class Filter:
         return None
 
     def selection(self, query: str) -> pd.DataFrame:
-        temp_memory = self.memory_queue.copy()
-        # TODO: extra: try query function
-        x = temp_memory[[query]]
-        return x
+        df = self.memory_queue.copy()
+        return df[eval(query)]
 
     def package(self):
         pack = Queue()
