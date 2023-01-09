@@ -230,12 +230,12 @@ class Agregator:
         while self.sending:
             if data.qsize() != 0:
                 x = data.get()
-                print(x)
-                print(type(x))
+                # print(x)
+                # print(type(x))
                 x = x[x.index(":") + 2 : -2]
                 x = json.loads(x)
-                print(x)
-                print(type(x))
+                # print(x)
+                # print(type(x))
                 pload = json.dumps(x)
                 content = (
                     "http://"
