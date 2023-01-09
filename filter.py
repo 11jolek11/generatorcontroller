@@ -128,7 +128,6 @@ class Filter:
         @self.server.route("/config", methods=["GET", "POST"])
         def config():
             content = request.get_json()
-            # print(content)
             self._config = content
             return jsonify({"config_sucess": True})
 
@@ -162,25 +161,16 @@ class Filter:
 
         if self.memory_queue.empty:
             self.memory_queue = df
-            # print("if inside agregte()")
         else:
             self.memory_queue = pd.concat([self.memory_queue, df], ignore_index=True)
-        # print("bbb")
         if True:
-        # if self.memory_queue.shape[0] == 1:
-            # print("eee")
             self.emit()
-        # print("aaa")
         return None
 
     def selection(self, query: str) -> pd.DataFrame:
-        # print("Selecting...")
         temp_memory = self.memory_queue.copy()
-        # print("########")
-        # print(temp_memory)
         # TODO: extra: try query function
         x = temp_memory[[query]]
-        # print(x)
         return x
 
     def package(self):
@@ -188,13 +178,10 @@ class Filter:
         if self._config["constraints"]["query"] != "":
             data = self.selection(
                 self._config["constraints"]["query"],
-                # self._config["constraints"]["selection"],
             )
         else:
             data = self.memory_queue.copy()
 
-        # print("Series problem")
-        # print(self.memory_queue)
         for y in range(data.shape[0]):
             t_str = "{"
             for x in data.columns.tolist():
@@ -224,7 +211,6 @@ class Filter:
         data = self.package()
         while self.sending:
             if data.qsize() != 0:
-                # print("if")
                 pload = json.dumps({"data": data.get()})
                 content = (
                     "http://"
