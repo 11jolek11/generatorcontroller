@@ -61,7 +61,8 @@ class Filter:
         # MQTT connection callbacks
         @staticmethod
         def on_publish(client, userdata, mid):
-            print(">> SENT MQTT: {}".format(mid))
+            # print(">> SENT : {}".format(mid))
+            print("SENT")
 
         @staticmethod
         def on_message(client, userdata, msg):
@@ -221,7 +222,8 @@ class Filter:
                 )
                 headers = {"Content-Type": "application/json"}
                 r = requests.request("POST", content, data=pload, headers=headers)
-                print(">> SENT HTTP {}: {} | {}".format(r.status_code, content, pload))
+                # print(">> SENT {}: {} | {}".format("OK", content, pload))
+                print("SENT")
                 time.sleep(int(self._config["frequency"]))
                 self.sending = True
             else:
